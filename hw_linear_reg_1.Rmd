@@ -1,11 +1,11 @@
 ---
 title: "MA678 homework 01"
 author: "Chaoqun Yin"
-date: "Septemeber 6, 2018"
+date: "Septemeber 16, 2018"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 \newcommand{\mat}[1]{\boldsymbol{#1}} 
@@ -81,45 +81,63 @@ Suppose that, for a certain population, we can predict log earnings from log hei
 
 1. Give the equation of the regression line and the residual standard deviation of the regression.
 
+**The equation of the regression line can be expressed as (1) log(y) = B1log(x) + B0. Then from the information in the questions, we can easily get that:**
+**(2) log(30000) = B1log(66) + B0 (3) Log(1.008y) = B1log(1.01x) + B0**
+
+**Then calculate the equations of (1)(2)(3), we can get that B1 = log(1.008)/log(1.01) = 0.80. Substitute B1 into equation (2), we can get that B0 = 6.96.Therefore the equation of the regression line is \[\lg y = 0.8 \cdot lg x +6.96\].From the question we can know that \[2\sigma = lg1.1\], so \[\sigma = 0.0477\].**
+
+
 2. Suppose the standard deviation of log heights is 5% in this population. What, then, is the $R^2$ of the regression model described here?
+
 
 
 ### Beauty and student evaluation 
 
 The folder beauty contains data from Hamermesh and Parker (2005) on student evaluations of instructors' beauty and teaching quality for several courses at the University of Texas. The teaching evaluations were conducted at the end of the semester, and the beauty judgments were made later, by six students who had not attended the classes and were not aware of the course evaluations.
 ```{r}
-beauty.data <- read.table (paste0(gelman_example_dir,"beauty/ProfEvaltnsBeautyPublic.csv"), header=T, sep=",")
+beauty.data <- read.table (paste0(gelman_example_dir,"beauty/ProfEvaltnsBeautyPublic.csv"),
+                           header=T, sep=",")
 ```
 
 1. Run a regression using beauty (the variable btystdave) to predict course evaluations (courseevaluation), controlling for various other inputs. Display the fitted model graphically, and explaining the meaning of each of the coefficients, along with the residual standard deviation. Plot the residuals versus fitted values.
 
 ```{r}
+#Use linear regression model among the beauty and the course evaluation
 y = beauty.data$courseevaluation
 x = beauty.data$btystdave
 regout3 = lm(y ~ x, beauty.data)
 
+#Make the plot of resuduals versus fitted values
 beauty.data_gp = ggplot(beauty.data)
 beauty.data_gp + aes(x, y)+ geom_point()+ 
   stat_smooth(method = "lm", col = "red")
 
-#Explain the meaning of each of the coefficients:
-coef(regout3)
-#It says the btystdave and the course evaluation is positively corelated. When the btystdave increases by 1, the course evaluation increase by 0.133. When the btystdave is 0, the course evaluation is 4.010.
+```
+**Explain the meaning of each of the coefficients:**
 
+```{r}
+coef(regout3)
+
+```
+**It says the btystdave and the course evaluation is positively corelated. When the btystdave increases by 1, the course evaluation increase by 0.133. When the btystdave is 0, the course evaluation is 4.010.**
+
+```{r}
 plot(beauty.data$btystdave,regout3$residuals, xlab = "btystdave", ylab="residuals")
 abline(h=0)
 ```
 
+
 2. Fit some other models, including beauty and also other input variables. Consider at least one model with interactions. For each model, state what the predictors are, and what the inputs are, and explain the meaning of each of its coefficients.
 
+**The regression model uses beauty (the variable btystdave) to predict professor evaluations (profevaluation), controlling for various other inputs.**
 ```{r}
-#The regression model uses beauty (the variable btystdave) to predict professor evaluations (profevaluation), controlling for various other inputs.
 y = beauty.data$profevaluation
 x = beauty.data$btystdave
 regout4 = lm(y ~ x, beauty.data)
 coef(regout4)
-##It says the btystdave and the professor evaluation is positively corelated. When the btystdave increases by 1, the professor evaluation increase by 0.126. When the btystdave is 0, the professor evaluation is 4.186.
+
 ```
+**It says the btystdave and the professor evaluation is positively corelated. When the btystdave increases by 1, the professor evaluation increase by 0.126. When the btystdave is 0, the professor evaluation is 4.186.**
 
 See also Felton, Mitchell, and Stinson (2003) for more on this topic 
 [link](http://papers.ssrn.com/sol3/papers.cfm?abstract_id=426763)
@@ -145,6 +163,7 @@ Run a regression of one variable on the other. Is the slope coefficient statisti
 fit  <- lm (var2 ~ var1)
 z.scores <- coef(fit)[2]/se.coef(fit)[2]
 z.scores
+#The z.scores is less than 2, so I think it is not statistically significiant.
 ```
 
 2. Now run a simulation repeating this process 100 times. This can be done using a loop. From each simulation, save the z-score (the estimated coefficient of var1 divided by its standard error). If the absolute value of the z-score exceeds 2, the estimate is statistically significant. Here is code to perform the simulation:
@@ -161,16 +180,11 @@ for (k in 1:100) {
 How many of these 100 z-scores are statistically significant? 
 What can you say about statistical significance of regression coefficient?
 ```{r}
-s = 0
-for (i in z.scores){
-  if (i > 2){
-    s = s + 1
-  }else next
-}
-s
-#Among all the values of z-scores, there are only 4 of them more than 2. Therefore we cannot say it is statistically significant of the regression coefficient.
-```
 
+length(z.scores[z.scores > 2]) + length(z.scores[z.scores < -2])
+
+```
+**Among all the values of z-scores, there are 3 of them more than 2. Therefore we can say it is statistically significant of the regression coefficient.**
 
 ### Fit regression removing the effect of other variables
 
@@ -188,12 +202,53 @@ An alternative procedure for calculating the least-squares coefficient $B_1$ is 
 fox_data_dir<-"http://socserv.socsci.mcmaster.ca/jfox/Books/Applied-Regression-3E/datasets/"
 Prestige<-read.table(paste0(fox_data_dir,"Prestige.txt"))
 
+# 0 Pick up data for the variables
+y <- Prestige$prestige
+x1 <- Prestige$education
+x2 <- Prestige$income
+x3 <- Prestige$women
+
+# 1 Regress prestige on income and percentage of women
+regout5 <- lm(y ~ x2 + x3, Prestige)
+residual.1 <- regout5$residuals
+
+# 2 Regress education on income and percentage of women
+regout6 <- lm(x1 ~ x2 + x3, Prestige)
+residual.2 <- regout6$residuals
+
+# 3 Regress the residuals gotten from section 1 on the residuals gotten from section 2
+regout7 <- lm(residual.1 ~ residual.2)
+coef(regout7)[2]
+
+# 4 Regress prestige on education, income and percentage of women
+regout8 <-lm(y ~ x1 + x2 + x3, Prestige)
+coef(regout8)[2]
+
+# So we can know the B1 = 4.19, the coefficient for education is properly recovered.
 ```
 (b) The intercept for the simple regression in step 3 is 0.  Why is this the case?
 
+```{r}
+coef(regout7)[1]
+# As we run the simple regressions seperately with education and without education, 
+#the other variables like income and percantage of women have been fully controlled.
+#So the intercept of the regression of residual.1 on residual.2 becomes 0.
+```
+
 (c) In light of this procedure, is it reasonable to describe $B_1$ as the "effect of $X_1$ on $Y$ when the influence of $X_2,\cdots,X_k$ is removed from both $X_1$ and $Y$"?
 
+```{r}
+#I think it is reasonable to describe it in this way, because we have controlled the
+#other inputs to get the reasonable outcome for the value of B1.
+```
+
 (d) The procedure in this problem reduces the multiple regression to a series of simple regressions ( in Step 3). Can you see any practical application for this procedure?
+
+```{r}
+#I can imagine when we meet a huge set of data and we just need to come up the correlation 
+#of two variables, we can use this method to get the result more efficient and convenient.
+```
+
 
 ### Partial correlation 
 
@@ -202,16 +257,44 @@ The partial correlation between $X_1$ and $Y$ "controlling for" $X_2,\cdots,X_k$
 1. Using the Canadian occupational prestige data, calculate the partial correlation between prestige and education, controlling for income and percentage women.
 
 ```{r}
+# 0 Pick up data for the variables
+y <- Prestige$prestige
+x1 <- Prestige$education
+x2 <- Prestige$income
+x3 <- Prestige$women
 
+# 1 Regress prestige on income and percentage of women
+regout8 <- lm(y ~ x2 + x3, Prestige)
+residual.3 <- regout8$residuals
+
+# 2 Regress education on income and percentage of women
+regout9 <- lm(x1 ~ x2 + x3, Prestige)
+residual.4 <- regout9$residuals
+
+# 3 Correlation between two residuals
+(Correlation <- cor(residual.3, residual.4))
+#The partial correlation is 0.736.
 ```
 
 2. In light of the interpretation of a partial regression coefficient developed in the previous exercise, why is $r_{y1|2,\dots, k}=0$ if and only if $B_1$ is 0?
+
+\[\epsilon_1=E_{y|2,3}\]
+
+\[\epsilon_2=E_{1|2,3}\]
+
+\[cor(\epsilon_1,\epsilon_2)=E[(\epsilon_1-0)(\epsilon_2-0)]=E(\epsilon_1\epsilon_2)\]
+
+\[\rho_{\epsilon_1,\epsilon_2}=\frac{cor(\epsilon_1\epsilon_2)}{\sigma_1\sigma_2}=\frac{E(\epsilon_1\epsilon_2)}{\sigma_1\sigma_2}=\frac{E(B_1\epsilon_2^2)}{\sigma_1\sigma_2}=\frac{B_1E(\epsilon_2^2)}{\sigma_1\sigma_2}\]
+
+So there must be that \[\beta_1E(\epsilon_2^2)=0\].
+Therefore $B_1$ is 0.
 
 ## Mathematical exercises.
 
 Prove that the least-squares fit in simple-regression analysis has the following properties:
 
 1. $\sum \hat{y}_i\hat{e}_i =0$
+
 
 2. $\sum (y_i-\hat{y}_i)(\hat{y}_i-\bar{y}) =\sum \hat{e}_i (\hat{y}_i-\bar{y})=0$
 
