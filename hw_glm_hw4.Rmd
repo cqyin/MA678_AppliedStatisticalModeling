@@ -3,9 +3,9 @@ title: "Homework 04"
 author: "Chaoqun Yin"
 date: "October 5, 2018"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
+  pdf_document: default
 subtitle: Generalized Linear Models
 ---
 
@@ -106,9 +106,7 @@ coef(wells.probit)*1.6
 # Comparing logit and probit: 
 construct a dataset where the logit and probit models give different estimates.
 
-```{r}
-
-```
+**There is no condition besides that the outcomes of probit regression is 1.6 times of logistic regression.**
 
 
 
@@ -129,7 +127,17 @@ experimental data from the National Supported Work example are available in the 
 ```{r, echo=FALSE}
 lalonde<-read.dta("http://www.stat.columbia.edu/~gelman/arm/examples/lalonde/NSW.dw.obs.dta")
 ```
+```{r}
+library(hett)
+re78.c <- (lalonde$re78-mean(lalonde$re78))/sd(lalonde$re78)
+summary(hett::tlm(re78.c ~ educ+treat+black+married, data = lalonde))
 
+```
+**Interpret: **
+* With every 1 unit increase in education level, one's average earning in 1978 would increase by 0.07 while controllinging all other variables.
+* If someone from NSW group, one's average earning on 1978 would be -0.37 lower than someone with the all same condition who from CPS or PSID group. 
+* If someone is black, one's average earning in 1978 would be -0.20 lower than someone with the all same condition but not black.
+* If someone is married, one's average earning in 1978 would be 0.71 higher than someone with the all same condition but not married.
 
 # Robust linear regression using the t model: 
 The csv file `congress` has the votes for the Democratic and Republican candidates in each U.S. congressional district in between 1896 and 1992, along with the parties' vote proportions and an indicator for whether the incumbent was running for reelection. 
@@ -141,14 +149,26 @@ congress<-read.csv("congress.csv",header=TRUE)
 
 1. Fit a linear regression (with the usual normal-distribution model for the errors) predicting 1988 Democratic vote share from the other variables and assess model fit.
 ```{r}
+library(tidyverse)
+congress %>% 
+  filter(year==1986 | year==1988) %>% 
+  filter(contested=="TRUE") -> data.fit
+model.lin <- lm(Dem_pct~Dem_vote+Rep_vote+Dem_vote*Rep_vote,data = data.fit)
+summary(model.lin)
+plot(resid(model.lin))
+coefplot(model.lin)
 ```
+* The linear model fitted has R-sqaure of 0.93, and two variables are significant.
 
 2. Fit a t-regression model predicting 1988 Democratic vote share from the other variables and assess model fit; to fit this model in R you can use the `vglm()` function in the VGLM package or `tlm()` function in the hett package. 
-
 ```{r}
+model.tregres <- vglm(Dem_pct ~ Dem_vote + Rep_vote+Dem_vote*Rep_vote, data = data.fit, tobit(Upper = 1))
+summary(model.tregres)
 ```
 
 3. Which model do you prefer?
+
+**I think the t-regression model is better. T-regression takes care of occasional large errors and it's more accurate. So, it's generally more appropriate to use t-regression. 
 
 # Robust regression for binary data using the robit model:
 Use the same data as the previous example with the goal instead of predicting for each district whether it was won by the Democratic or Republican candidate.
@@ -173,30 +193,39 @@ Use the same data as the previous example with the goal instead of predicting fo
 ```{r}
 data(salmonella)
 ?salmonella
+
+model.p <- glm(colonies ~ dose,data = salmonella, family=poisson)
+summary(model.p)
 ```
 
 When you plot the data you see that the number of colonies as a function of dose is not monotonic especially around the dose of 1000.
 ```{r}
+ggplot(data = salmonella, mapping = aes(x = dose, y = colonies)) +
+  geom_point()
 ```
 
 Since we are fitting log linear model we should look at the data on log scale.  Also becase the dose is not equally spaced on the raw scale it may be better to plot it on the log scale as well.
 ```{r}
+model.p.log <- glm(colonies~log(dose+1), data = salmonella, family = poisson)
+summary(model.p.log)
 ```
 
 This shows that the trend is not monotonic.  Hence when you fit the model and look at the residual you will see a trend.
 ```{r}
-
+ggplot(mapping = aes(x=fitted(model.p.log),y=resid(model.p.log)))+geom_point()
+binnedplot(fitted(model.p.log),resid(model.p.log,type="response"))
 ```
 
 The lack of fit is also evident if we plot the fitted line onto the data.
 ```{r}
-
+plot(model.p.log,which=1)
 ```
 
 How do we adress this problem?  The serious problem to address is the nonlinear trend of dose ranther than the overdispersion since the line is missing the points.  Let's add a beny line with 4th order polynomial.
 
 ```{r}
-
+model.4th <- lm(colonies~dose^4,data = salmonella)
+summary(model.4th)
 ``` 
 
 The resulting residual looks nice and if you plot it on the raw data.  Whether the trend makes real contextual sense will need to be validated but for the given data it looks feasible.
@@ -222,7 +251,11 @@ data(ships)
 Develop a model for the rate of incidents, describing the effect of the important predictors.
 
 ```{r}
+model.ships <- glm(incidents ~ ., family=poisson, data=ships)
+summary(model.ships)
 ```
+
+**From the summary of the regression model, we can see that there are 6 variables that are statistically significant.**
 
 # Australian Health Survey 
 The `dvisits` data comes from the Australian Health Survey of 1977-78 and consist of 5190 single adults where young and old have been oversampled.
@@ -236,32 +269,39 @@ data(dvisits)
 1.  Build a Poisson regression model with `doctorco` as the response and `sex`, `age`, `agesq`, `income`, `levyplus`, `freepoor`, `freerepa`, `illness`, `actdays`, `hscore`, `chcond1` and `chcond2` as possible predictor variables. Considering the deviance of this model, does this model fit the data?
 
 ```{r}
-
+dvis <- glm(doctorco ~ sex + age + agesq + income + levyplus + freepoor + freerepa + illness + actdays + hscore + chcond1 + chcond2, family=poisson, data = dvisits)
+summary(dvis)
 ```
+
+There are few variables that are statistically significant. So the model does not fit the data well.
 
 2. Plot the residuals and the fitted values-why are there lines of observations on the
 plot?
 
 ```{r}
-
+par(mfrow=c(2,2))
+plot(dvis)
 ```
 
-3. What sort of person would be predicted to visit the doctor the most under your
-selected model?
+3. What sort of person would be predicted to visit the doctor the most under your selected model?
 
-```{r}
-
-```
+**Males, people with larger number of illnesses, people with larger number of days of reduced activity and people with bad health will be considered more possible to visit the doctor.**
 
 4. For the last person in the dataset, compute the predicted probability distribution for
 their visits to the doctor, i.e., give the probability they visit 0,1,2, etc. times. 
 
 ```{r}
+predict(dvis, dvisits[5190,], type="response")
 
 ```
 
 5. Fit a comparable (Gaussian) linear model and graphically compare the fits.  Describe how they differ.
 
 ```{r}
+model.dvis <- lm(doctorco ~ sex + age + agesq + income + levyplus + freepoor + freerepa + illness + actdays + hscore + chcond1 + chcond2, data=dvisits)
+summary(model.dvis)
 
+predict(model.dvis, dvisits[5190,])
 ```
+
+**The model fits the data badly with the last one.**
