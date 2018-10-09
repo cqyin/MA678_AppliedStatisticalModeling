@@ -1,0 +1,267 @@
+---
+title: "Homework 04"
+author: "Chaoqun Yin"
+date: "October 5, 2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+subtitle: Generalized Linear Models
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,out.width="0.9\\linewidth",dev="pdf",fig.align  = 'center')
+pacman::p_load("ggplot2","knitr","faraway","arm","hett","data.table","foreign","car","VGAM","MASS")
+```
+
+
+# Data analysis 
+
+## Poisson regression: 
+
+The folder `risky.behavior` contains data from a randomized trial targeting couples at high risk of HIV infection. The intervention provided counseling sessions regarding practices that could reduce their likelihood of contracting HIV. Couples were randomized either to a control group, a group in which just the woman participated, or a group in which both members of the couple participated. One of the outcomes examined after three months was "number of unprotected sex acts". The variables bupacts: before treatment; fupacts: after treatment.
+
+```{r, echo=FALSE}
+risky_behaviors<-read.dta("http://www.stat.columbia.edu/~gelman/arm/examples/risky.behavior/risky_behaviors.dta")
+```
+
+1. Model this outcome as a function of treatment assignment using a Poisson regression. Does the model fit well? Is there evidence of overdispersion?
+
+```{r}
+risk <- risky_behaviors
+
+#Fit the model
+risk$fupacts <- round(risk$fupacts)
+fit.1 <- glm(formula = fupacts ~ factor(women_alone) + factor(couples), data = risk, family = poisson)
+summary(fit.1)
+
+```
+**It seems that the model fits well. Because the coefficients are statistically significiant. And the duifference between residual deviance and null deviance is pretty large.**
+
+```{r}
+#Specify the n and the k
+n = nrow(risk)
+k = length(fit.1$coefficients)
+#Calculate yhat
+yhat <- predict(fit.1, type = "response")
+#Calculate standarized residuals
+z <- (risk$fupacts - yhat)/sqrt(yhat)
+cat("Overdispersion ratio is ", sum(z^2)/(n-k), "\n")
+cat("P-value of overdispersion test is ", pchisq (sum(z^2), n-k), "\n")
+
+```
+**The overdispersion ratio is big so there is an overdispersion. **
+
+2. Next extend the model to include pre-treatment measures of the outcome and the additional pre-treatment variables included in the dataset. Does the model fit well? Is there evidence of overdispersion?
+```{r}
+fit.2 <- glm(fupacts ~ factor(sex) + couples + women_alone + factor(bs_hiv) + bupacts  , data = risk, family= poisson)
+summary(fit.2)
+
+```
+**The AIC of the new model is smaller than the formal one, so the new model fits better.**
+
+```{r}
+#Specify the n and the k
+n = nrow(risk)
+k = length(fit.2$coefficients)
+#Calculate yhat
+yhat <- predict(fit.2, type = "response")
+#Calculate standarized residuals
+z <- (risk$fupacts - yhat)/sqrt(yhat)
+cat("Overdispersion ratio is ", sum(z^2)/(n-k), "\n")
+cat("P-value of overdispersion test is ", pchisq (sum(z^2), n-k), "\n")
+
+```
+**The overdispersion ratio is also big so there is an overdispersion. But it is lower than the medel one, so the new model fits better.**
+
+3. Fit an overdispersed Poisson model. What do you conclude regarding effectiveness of the intervention?
+```{r}
+#fit the model
+fit.3 <- glm(fupacts ~ factor(sex) + couples + women_alone + factor(bs_hiv) + bupacts  , data = risk, family= quasipoisson)
+summary(fit.3)
+```
+**Regarding the efficience of the intervention, the variables in the model become less statistically significant.**
+
+4. These data include responses from both men and women from the participating couples. Does this give you any concern with regard to our modeling assumptions?
+
+**Yes, it is kind of misleading. Because if we add women only as a controlling group, we should also add man only as a controlling group to balance whether it is significant that the coefficients represent.**
+
+# Comparing logit and probit: 
+Take one of the data examples from Chapter 5. Fit these data using both logit and probit model. Check that the results are essentially the same (after scaling by factor of 1.6)
+```{r}
+#Take the well-switching as the example
+wells <- read.table("http://www.stat.columbia.edu/~gelman/arm/examples/arsenic/wells.dat", header=TRUE)
+wells_dt <- data.table(wells)
+
+wells.logit <- glm(switch ~ log(dist),family = binomial(link = "logit"), data = wells_dt)
+summary(wells.logit)
+wells.probit <- glm(switch ~ log(dist),family = binomial(link = "probit"), data = wells_dt)
+summary(wells.probit)
+
+coef(wells.logit)
+coef(wells.probit)*1.6
+```
+**From the results, the coefficients ssentially the same after the coefficients of probit regression scaling by factor of 1.6.**
+
+# Comparing logit and probit: 
+construct a dataset where the logit and probit models give different estimates.
+
+```{r}
+
+```
+
+
+
+# Tobit model for mixed discrete/continuous data: 
+experimental data from the National Supported Work example are available in the folder `lalonde`. Use the treatment indicator and pre-treatment variables to predict post-treatment (1978) earnings using a tobit model. Interpret the model coefficients.
+
+- sample: 1 = NSW; 2 = CPS; 3 = PSID.
+- treat: 1 = experimental treatment group (NSW); 0 = comparison group (either from CPS or PSID)   - Treatment took place in 1976/1977.
+- age  = age in years
+- educ = years of schooling
+- black: 1 if black; 0 otherwise.
+- hisp: 1 if Hispanic; 0 otherwise.
+- married: 1 if married; 0 otherwise.
+- nodegree: 1 if no high school diploma; 0 otherwise.
+- re74, re75, re78: real earnings in 1974, 1975 and 1978
+- educ_cat = 4 category education variable (1=<hs, 2=hs, 3=sm college, 4=college)
+
+```{r, echo=FALSE}
+lalonde<-read.dta("http://www.stat.columbia.edu/~gelman/arm/examples/lalonde/NSW.dw.obs.dta")
+```
+
+
+# Robust linear regression using the t model: 
+The csv file `congress` has the votes for the Democratic and Republican candidates in each U.S. congressional district in between 1896 and 1992, along with the parties' vote proportions and an indicator for whether the incumbent was running for reelection. 
+For your analysis, just use the elections in 1986 and 1988 that were contested by both parties in both years.
+
+```{r, echo=FALSE}
+congress<-read.csv("congress.csv",header=TRUE)
+```
+
+1. Fit a linear regression (with the usual normal-distribution model for the errors) predicting 1988 Democratic vote share from the other variables and assess model fit.
+```{r}
+```
+
+2. Fit a t-regression model predicting 1988 Democratic vote share from the other variables and assess model fit; to fit this model in R you can use the `vglm()` function in the VGLM package or `tlm()` function in the hett package. 
+
+```{r}
+```
+
+3. Which model do you prefer?
+
+# Robust regression for binary data using the robit model:
+Use the same data as the previous example with the goal instead of predicting for each district whether it was won by the Democratic or Republican candidate.
+
+1. Fit a standard logistic or probit regression and assess model fit. 
+```{r}
+```
+
+2. Fit a robit regression and assess model fit.
+```{r}
+```
+
+3. Which model do you prefer?
+```{r}
+```
+
+
+
+# Salmonellla
+ The `salmonella` data was collected in a salmonella reverse mutagenicity assay. The predictor is the dose level of quinoline and the response is the numbers of revertant colonies of TA98 salmonella observed on each of three replicate plates. Show that a Poisson GLM is inadequate and that some overdispersion must be allowed for. Do not forget to check out other reasons for a high deviance.
+ 
+```{r}
+data(salmonella)
+?salmonella
+```
+
+When you plot the data you see that the number of colonies as a function of dose is not monotonic especially around the dose of 1000.
+```{r}
+```
+
+Since we are fitting log linear model we should look at the data on log scale.  Also becase the dose is not equally spaced on the raw scale it may be better to plot it on the log scale as well.
+```{r}
+```
+
+This shows that the trend is not monotonic.  Hence when you fit the model and look at the residual you will see a trend.
+```{r}
+
+```
+
+The lack of fit is also evident if we plot the fitted line onto the data.
+```{r}
+
+```
+
+How do we adress this problem?  The serious problem to address is the nonlinear trend of dose ranther than the overdispersion since the line is missing the points.  Let's add a beny line with 4th order polynomial.
+
+```{r}
+
+``` 
+
+The resulting residual looks nice and if you plot it on the raw data.  Whether the trend makes real contextual sense will need to be validated but for the given data it looks feasible.
+
+```{r}
+
+```
+
+Dispite the fit, the overdispersion still exists so we'd be better off using the quasi Poisson model.
+```{r}
+
+```
+
+
+# Ships
+The `ships` dataset found in the MASS package gives the number of damage incidents and aggregate months of service for different types of ships broken down by year of construction and period of operation. 
+
+```{r}
+data(ships)
+?ships
+```
+
+Develop a model for the rate of incidents, describing the effect of the important predictors.
+
+```{r}
+```
+
+# Australian Health Survey 
+The `dvisits` data comes from the Australian Health Survey of 1977-78 and consist of 5190 single adults where young and old have been oversampled.
+
+```{r}
+data(dvisits)
+?dvisits
+```
+
+
+1.  Build a Poisson regression model with `doctorco` as the response and `sex`, `age`, `agesq`, `income`, `levyplus`, `freepoor`, `freerepa`, `illness`, `actdays`, `hscore`, `chcond1` and `chcond2` as possible predictor variables. Considering the deviance of this model, does this model fit the data?
+
+```{r}
+
+```
+
+2. Plot the residuals and the fitted values-why are there lines of observations on the
+plot?
+
+```{r}
+
+```
+
+3. What sort of person would be predicted to visit the doctor the most under your
+selected model?
+
+```{r}
+
+```
+
+4. For the last person in the dataset, compute the predicted probability distribution for
+their visits to the doctor, i.e., give the probability they visit 0,1,2, etc. times. 
+
+```{r}
+
+```
+
+5. Fit a comparable (Gaussian) linear model and graphically compare the fits.  Describe how they differ.
+
+```{r}
+
+```
