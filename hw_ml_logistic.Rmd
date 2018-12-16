@@ -1,7 +1,7 @@
 ---
 title: "MA678 homework 08"
-author: "Name"
-date: "November 10, 2017"
+author: "Chaoqun Yin"
+date: "December 12, 2018"
 output:
   pdf_document: default
   html_document: default
@@ -66,11 +66,15 @@ data$female <- data[,"gender"] - 1
 data$black <- ifelse (data[,"race"]==2, 1, 0)
 data$rvote <- ifelse (data[,"presvote"]==1, 0, ifelse(data[,"presvote"]==2, 1, NA))
 
+
+fit.1<-glm(rvote~gender+race+educ1+partyid7+ideo7+ideo7*partyid7, data=data,family="binomial")
 ```
 
 2.  Now formulate a model predicting support for Bush given the same inputs but allowing the intercept to vary over state. Fit using `lmer()` and discuss your results.
 
 ```{r,echo=FALSE}
+fit.2<-lmer(rvote~gender+race+educ1+partyid7+ideo7+ideo7*partyid7+(1|state), data=data)
+summary(fit.2)
 
 ```
 
@@ -96,19 +100,22 @@ invisible(apt_dt[,asian := race==5 | race==6 | race==7])
 invisible(apt_dt[,black := race==2])
 invisible(apt_dt[,hisp  := race==3 | race==4])
 
+fit.3<-lmer(rodent2~stories+housewgt+subsidy+housing+old+help+(1|race)+(1|borough) ,data=apt_dt, family="binomial")
+display(fit.3)
 ``` 
 
 2. Now extend the model in (1) to allow variation across buildings within community district and then across community districts. Also include predictors describing the community districts. Fit this model using lmer() and interpret the coefficients at all levels.
 
 ```{r,echo=FALSE}
-
+fit.4<-lmer(rodent2~stories+housewgt+subsidy+housing+old+help+race+ (1 | borough) + (1 | cd) ,data=apt_dt, family="binomial")
+display(fit.4)
 
 ```
 
 3. Compare the fit of the models in (1) and (2).
 
 ```{r,echo=FALSE}
-
+anova(fit.3, fit.4)
 
 ```
 
@@ -138,36 +145,43 @@ dating<-fread("http://www.stat.columbia.edu/~gelman/arm/examples/speed.dating/Sp
 1. Fit a classical logistic regression predicting $Pr(y_{ij} = 1)$ given person $i$'s 6 ratings of person $j$. Discuss the importance of attractiveness, compatibility, and so forth in this predictive model.
 
 ```{r}
-
+fit.5<- glm(match~attr_o +sinc_o +intel_o +fun_o +amb_o +shar_o,data=dating,family="binomial")
+summary(fit.5)
+coefplot(fit.5)
 ```
 
 2. Expand this model to allow varying intercepts for the persons making the evaluation; that is, some people are more likely than others to want to meet someone again. Discuss the fitted model.
 
 ```{r}
-
+fit.6<- lmer(match~gender+partner+scale(attr_o) +scale(sinc_o) +scale(intel_o) +scale(fun_o) +scale(amb_o) +scale(shar_o)+(1|id),data=dating,family=binomial(link="logit"))
+summary(fit.6)
 ```
 
 3. Expand further to allow varying intercepts for the persons being rated. Discuss the fitted model.
 
 ```{r}
-
+fit.7 <- glmer(match~gender+partner+scale(attr_o) +scale(sinc_o) +scale(intel_o) +scale(fun_o) +scale(amb_o) +scale(shar_o)+(1|id)+(1|idg),data=dating,family=binomial(link="logit"))
+summary(fit.7)
 ```
 
 4. You will now fit some models that allow the coefficients for attractiveness, compatibility, and the other attributes to vary by person. Fit a no-pooling model: for each person i, fit a logistic regression to the data $y_{ij}$ for the 10 persons j whom he or she rated, using as predictors the 6 ratings $r_{ij1},\dots,r_{ij6}$ . (Hint: with 10 data points and 6 predictors, this model is difficult to fit. You will need to simplify it in some way to get reasonable fits.)
 ```{r}
-
+fit.8 <- glm(match~attr_o + sinc_o + intel_o + fun_o + amb_o + shar_o + factor(iid)-1,data=dating)
+summary(fit.8)
 ```
 
 
 5. Fit a multilevel model, allowing the intercept and the coefficients for the 6 ratings to vary by the rater i.
 
 ```{r}
-
+fit.9 <- glmer(match~(1+attr_o+sinc_o+intel_o+fun_o+amb_o+shar_o|iid) + attr_o + sinc_o + intel_o + fun_o + amb_o + shar_o,data=dating)
+summary(fit.9)
 ```
 
 6. Compare the inferences from the multilevel model in (5) to the no-pooling model in (4) and the complete-pooling model from part (1) of the previous exercise.
 
 ```{r}
+anova(fit.9, fit.8, fit.5)
 
 ```
 
@@ -187,12 +201,15 @@ wells <- read.dta("http://www.stat.columbia.edu/~gelman/arm/examples/arsenic/all
 wells_f <- read.csv("http://www.stat.columbia.edu/~gelman/arm/examples/arsenic/All.csv", header=TRUE)
 wells_f <- read.csv("http://www.stat.columbia.edu/~gelman/arm/examples/arsenic/fulldata1.csv", header=TRUE)
 
+fit.10<-lmer(switch~log(distcw)+ arsenic +(1|id),data=wells,family="binomial")
+display(fit.10)
 ```
 
 2. Extend the model in (1) to allow the coefficient on arsenic to vary across village, as well. Fit this model using `lmer()` and discuss the results.
 
 ```{r,echo=FALSE}
-
+fit.11<-lmer(switch~log(distcw)+ arsenic +(1|id)+(0+arsenic|id),data=wells,family="binomial")
+display(fit.11)
 
 ```
 
@@ -206,6 +223,6 @@ wells_f <- read.csv("http://www.stat.columbia.edu/~gelman/arm/examples/arsenic/f
 4. Compare the fit of the models in (1) and (2).
 
 ```{r,echo=FALSE}
-
+anova(fit.10, fit.11)
 
 ```
